@@ -48,6 +48,7 @@ ion-button { --border-radius: 10px; font-weight: 700; }
 .photo-file-label input { display: block; width: 100%; padding: 8px 0; color: #898b98; font-size: 12px; }
 .photo-preview { width: 88px; height: 88px; border: 2px solid #e8a24a; }
 .muted { color: #858794 !important; font-size: 13px; line-height: 1.6; }
+.catalog-notice { color: #d7ad72; font-size: 13px; line-height: 1.5; margin: -18px 0 24px; }
 .legal-note { font-size: 11px !important; margin-top: 18px; }
 .error-message { color: #ff8a86; font-size: 13px; }
 .auth-form ion-button { margin-top: 8px; height: 48px; }

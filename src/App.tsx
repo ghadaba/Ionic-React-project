@@ -30,7 +30,7 @@ import {
   personCircleOutline,
   filmOutline,
 } from "ionicons/icons";
-import { starterMovies, type Movie } from "./catalog";
+import type { Movie } from "./catalog";
 import {
   clearSession,
   createPasswordHash,
@@ -46,13 +46,15 @@ import {
 } from "./localStore";
 import { takeProfilePhoto, readProfilePhoto } from "./profilePhoto";
 import { calculateMatchScore } from "./matching";
+import { loadMovieCatalog } from "./tmdb";
 
 type Section = "catalogue" | "favoris" | "rencontres" | "admin";
 
 function App() {
   const [accounts, setAccounts] = useState<LocalAccount[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [movies, setMovies] = useState<Movie[]>(starterMovies);
+  const [movies, setMovies] = useState<Movie[]>([]);
+  const [catalogNotice, setCatalogNotice] = useState("");
   const [section, setSection] = useState<Section>("catalogue");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -65,10 +67,11 @@ function App() {
     let cancelled = false;
     async function restoreLocalData() {
       try {
-        let [savedAccounts, savedMovies, sessionUid] = await Promise.all([
+        let [savedAccounts, savedMovies, sessionUid, catalog] = await Promise.all([
           loadAccounts(),
           loadMovies(),
           loadSessionUid(),
+          loadMovieCatalog(),
         ]);
         if (savedAccounts.length > 0 && !savedAccounts.some(({ profile: saved }) => saved.isAdmin)) {
           savedAccounts = savedAccounts.map((account, index) => index === 0
@@ -78,8 +81,9 @@ function App() {
         }
         if (cancelled) return;
         setAccounts(savedAccounts);
-        setMovies([...starterMovies, ...savedMovies.filter(
-          (movie) => !starterMovies.some((starter) => starter.id === movie.id),
+        setCatalogNotice(catalog.notice);
+        setMovies([...catalog.movies, ...savedMovies.filter(
+          (movie) => !catalog.movies.some((item) => item.id === movie.id),
         )]);
         const currentAccount = savedAccounts.find(({ profile: saved }) => saved.uid === sessionUid);
         if (currentAccount && !currentAccount.profile.active) {
@@ -114,13 +118,19 @@ function App() {
     () => movies.filter((movie) => profile?.favoriteMovieIds.includes(movie.id)),
     [movies, profile],
   );
+  // Construit la liste des rencontres à partir des profils actifs déjà filtrés
+  // (sans le profil connecté). useMemo recalcule les scores seulement si les
+  // films, le profil courant ou la liste des profils change.
   const matches = useMemo(
     () => profiles
       .map((other) => ({
         profile: other,
+        // Le score compare les favoris du profil courant à ceux du profil évalué.
         score: profile ? calculateMatchScore(profile, other, movies) : 0,
       }))
+      // L'application présente uniquement les compatibilités strictement > 75.
       .filter((match) => match.score > 75)
+      // Les meilleures compatibilités apparaissent en premier.
       .sort((left, right) => right.score - left.score),
     [movies, profile, profiles],
   );
@@ -265,7 +275,7 @@ function App() {
     const nextMovies = [...movies, movie];
     try {
       await saveMovies(nextMovies.filter(
-        (item) => !starterMovies.some((starter) => starter.id === item.id),
+        (item) => !item.id.startsWith("tmdb-"),
       ));
       setMovies(nextMovies);
       formElement.reset();
@@ -383,6 +393,7 @@ function App() {
                 <p>Les bonnes histoires sont encore meilleures quand elles sont partagées.</p></div>
               <div className="banner-stats"><div><strong>{favoriteMovies.length}</strong><span>favoris</span></div><div><strong>{matches.length}</strong><span>affinités</span></div></div>
             </section>
+            {catalogNotice && section === "catalogue" && <p className="catalog-notice" role="status">{catalogNotice}</p>}
             <IonSegment value={section} onIonChange={(event) => {
               const value = event.detail.value;
               if (value === "catalogue" || value === "favoris" || value === "rencontres" || value === "admin") setSection(value);
@@ -399,7 +410,10 @@ function App() {
               {profile.favoriteMovieIds.length === 0 ? <EmptyState text="Ajoutez des films à votre playlist pour découvrir vos affinités." /> : matches.length === 0 ? <EmptyState text="Pas encore de match à plus de 75 %. Créez un autre compte local sur cet appareil et ajoutez des favoris." /> : <div className="match-grid">{matches.map(({ profile: other, score }) => <IonCard className="match-card" key={other.uid}><IonCardContent><IonAvatar className="match-avatar"><img src={other.photoURL} alt={`Photo de ${other.firstName}`} /></IonAvatar><div className="match-info"><h3>{other.firstName}, {other.age} ans</h3><p>{other.favoriteMovieIds.length} films en favoris</p></div><div className="match-score">{score.toFixed(1)}%</div></IonCardContent></IonCard>)}</div>}
             </section>}
             {section === "admin" && profile.isAdmin && <AdminPanel movies={movies} profiles={accounts.map((account) => account.profile)} currentUid={profile.uid} onAddMovie={handleAddMovie} onToggleUser={toggleUserActive} />}
-            <footer className="site-footer">CinéMatch <span>•</span> Données stockées sur cet appareil</footer>
+            <footer className="site-footer">
+              CinéMatch <span>•</span> Données stockées sur cet appareil
+              <span>•</span> This product uses the TMDB API but is not endorsed or certified by TMDB.
+            </footer>
           </div>
         </IonContent>
         <IonToast isOpen={Boolean(toast)} message={toast} duration={2400} onDidDismiss={() => setToast("")} />

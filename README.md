@@ -26,6 +26,16 @@ Le serveur s’ouvre sur `http://localhost:8100`. Pour que la caméra Web soit a
 
 Pour générer la version Web de production : `npm run build`.
 
+## Catalogue TMDB
+
+Le catalogue est chargé depuis l’API TMDB avec les films populaires en français, leurs genres et leurs acteurs. L’application garde une copie locale pour le mode hors ligne. Si aucune clé n’est configurée ou que TMDB est inaccessible sans cache, aucun film ne sera affiché; les films saisis par l’administrateur restent disponibles localement.
+
+1. Copiez `.env.example` vers `.env.local`.
+2. Remplacez la valeur de `VITE_TMDB_API_KEY` par votre clé d’API TMDB.
+3. Redémarrez `ionic serve` ou `npm run dev`.
+
+Ne publiez jamais `.env.local`. Comme l’application appelle TMDB depuis le navigateur, la clé intégrée à une version web/native peut être retrouvée par les utilisateurs; cette configuration convient à un projet de démonstration, pas à une clé devant rester secrète. Pour une application publique, effectuez les appels depuis un serveur. Ce produit utilise l’API TMDB sans être approuvé ni certifié par TMDB.
+
 ## Capacitor natif
 
 Le projet inclut Capacitor Core, Camera, Preferences et sa configuration. Ajoutez la plateforme souhaitée, puis synchronisez les plugins :
